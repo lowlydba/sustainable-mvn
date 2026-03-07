@@ -1,0 +1,93 @@
+---
+name: Test action
+
+on:
+  push:
+  pull_request:
+
+permissions: read-all
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        java: ['11', '17', '21']
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+
+      - name: Run action (defaults)
+        uses: ./
+        with:
+          batch-mode: 'true'
+          no-transfer-progress: 'true'
+          threads: '1C'
+          offline: 'false'
+          skip-tests: 'false'
+          artifact-threads: '8'
+          overwrite: 'false'
+
+      - name: Assert Maven config contents
+        shell: bash
+        run: |
+          CONFIG_FILE=".mvn/maven.config"
+
+          echo "Validating Maven config file at: $CONFIG_FILE"
+
+          if [ ! -f "$CONFIG_FILE" ]; then
+            echo "Error: $CONFIG_FILE was not created"
+            exit 1
+          fi
+
+          echo "Config file contents:"
+          cat "$CONFIG_FILE"
+
+          if ! grep -qxF -- "--batch-mode" "$CONFIG_FILE";                  then echo "Missing: --batch-mode";                  exit 1; fi
+          if ! grep -qxF -- "--no-transfer-progress" "$CONFIG_FILE";        then echo "Missing: --no-transfer-progress";        exit 1; fi
+          if ! grep -qxF -- "--threads 1C" "$CONFIG_FILE";                  then echo "Missing: --threads 1C";                  exit 1; fi
+          if ! grep -qxF -- "-Dmaven.artifact.threads=8" "$CONFIG_FILE";    then echo "Missing: -Dmaven.artifact.threads=8";    exit 1; fi
+
+          # Verify --offline and -DskipTests are NOT present (both default to false)
+          if grep -qxF -- "--offline" "$CONFIG_FILE";   then echo "Unexpected: --offline present"; exit 1; fi
+          if grep -qxF -- "-DskipTests" "$CONFIG_FILE"; then echo "Unexpected: -DskipTests present"; exit 1; fi
+
+          echo "All Maven config entries validated successfully."
+
+      - name: Add sentinel value to config
+        shell: bash
+        run: |
+          echo "# sentinel" >> ".mvn/maven.config"
+
+      - name: Run action with overwrite=false (should preserve existing config)
+        uses: ./
+        with:
+          overwrite: 'false'
+
+      - name: Assert config was NOT overwritten
+        shell: bash
+        run: |
+          if ! grep -q "sentinel" ".mvn/maven.config"; then
+            echo "Error: Config was overwritten when overwrite=false"
+            exit 1
+          fi
+          echo "Confirmed: config was preserved when overwrite=false"
+
+      - name: Run action with overwrite=true (should replace config)
+        uses: ./
+        with:
+          overwrite: 'true'
+
+      - name: Assert config WAS overwritten
+        shell: bash
+        run: |
+          if grep -q "sentinel" ".mvn/maven.config"; then
+            echo "Error: Config still contains sentinel value after overwrite=true"
+            exit 1
+          fi
+          echo "Confirmed: config was replaced when overwrite=true"

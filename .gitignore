@@ -1,0 +1,4 @@
+.vscode/settings.json
+
+# Maven build output in test modules
+test/**/target/

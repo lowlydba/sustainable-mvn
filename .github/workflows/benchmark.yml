@@ -1,0 +1,188 @@
+---
+# act workflow_dispatch -W .github/workflows/benchmark.yml --job benchmark --container-daemon-socket npipe:////./pipe/docker_engine -P ubuntu-latest=catthehacker/ubuntu:act-latest
+name: Benchmark
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+
+permissions: read-all
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java-version: ['11', '17', '21']
+        project-size: ['medium', 'multi']
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java-version }}
+
+      - name: Install hyperfine and Maven
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y hyperfine maven
+
+      - name: Write sustainable-mvn config (defaults)
+        uses: ./
+        with:
+          overwrite: 'true'
+
+      - name: Backup defaults config
+        run: cp .mvn/maven.config .mvn/maven.config.defaults
+
+      - name: Write sustainable-mvn config (extreme mode)
+        uses: ./
+        with:
+          batch-mode: 'true'
+          no-transfer-progress: 'true'
+          threads: '2C'
+          offline: 'false'
+          skip-tests: 'true'
+          artifact-threads: '8'
+          overwrite: 'true'
+
+      - name: Backup extreme config
+        run: cp .mvn/maven.config .mvn/maven.config.extreme
+
+      - name: Run benchmarks (all configurations)
+        run: |
+          SUMMARY_MD="$(mktemp)"
+
+          if [ "${{ matrix.project-size }}" = "multi" ]; then
+            MAVEN_CMD="mvn -f test/${{ matrix.project-size }}-project/pom.xml install -DskipTests"
+          else
+            MAVEN_CMD="mvn -f test/${{ matrix.project-size }}-project/pom.xml dependency:resolve"
+          fi
+
+          {
+            echo "## Hyperfine Benchmarks"
+            echo
+            echo "Java: ${{ matrix.java-version }}"
+            echo "Project size: ${{ matrix.project-size }}"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          hyperfine --warmup 2 --runs 5 \
+            --export-markdown "$SUMMARY_MD" \
+            --prepare 'rm -rf ~/.m2/repository/org/springframework ~/.m2/repository/com/fasterxml/jackson 2>/dev/null || true' \
+            -n vanilla \
+            "rm -f .mvn/maven.config && $MAVEN_CMD" \
+            -n 'sustainable-mvn (defaults)' \
+            "cp .mvn/maven.config.defaults .mvn/maven.config && $MAVEN_CMD" \
+            -n 'sustainable-mvn (extreme)' \
+            "cp .mvn/maven.config.extreme .mvn/maven.config && $MAVEN_CMD"
+
+          cat "$SUMMARY_MD" >> "$GITHUB_STEP_SUMMARY"
+          rm -f "$SUMMARY_MD"
+
+  eco-ci:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java-version: ['21', '17', '11']
+        project-size: ['medium', 'multi']
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java-version }}
+
+      - name: Install Maven
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y maven
+
+      - name: Start EcoCI measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: start-measurement
+          send-data: false
+
+      - name: Measure — vanilla (no config, 10 runs)
+        run: |
+          rm -f .mvn/maven.config
+          if [ "${{ matrix.project-size }}" = "multi" ]; then
+            MAVEN_CMD="mvn -f test/${{ matrix.project-size }}-project/pom.xml install -DskipTests"
+          else
+            MAVEN_CMD="mvn -f test/${{ matrix.project-size }}-project/pom.xml dependency:resolve"
+          fi
+          for _ in $(seq 1 10); do
+            rm -rf ~/.m2/repository/org/springframework ~/.m2/repository/com/fasterxml/jackson
+            $MAVEN_CMD
+          done
+
+      - name: Get EcoCI measurement — vanilla
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: get-measurement
+          label: 'vanilla (no config)'
+          send-data: false
+
+      - name: Write sustainable-mvn config (defaults)
+        uses: ./
+        with:
+          overwrite: 'true'
+
+      - name: Measure — sustainable-mvn defaults (10 runs)
+        run: |
+          if [ "${{ matrix.project-size }}" = "multi" ]; then
+            MAVEN_CMD="mvn -f test/${{ matrix.project-size }}-project/pom.xml install -DskipTests"
+          else
+            MAVEN_CMD="mvn -f test/${{ matrix.project-size }}-project/pom.xml dependency:resolve"
+          fi
+          for _ in $(seq 1 10); do
+            rm -rf ~/.m2/repository/org/springframework ~/.m2/repository/com/fasterxml/jackson
+            $MAVEN_CMD
+          done
+
+      - name: Get EcoCI measurement — defaults
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: get-measurement
+          label: 'sustainable-mvn (defaults)'
+          send-data: false
+
+      - name: Write sustainable-mvn config (extreme mode)
+        uses: ./
+        with:
+          batch-mode: 'true'
+          no-transfer-progress: 'true'
+          threads: '2C'
+          offline: 'false'
+          skip-tests: 'true'
+          artifact-threads: '8'
+          overwrite: 'true'
+
+      - name: Measure — sustainable-mvn extreme mode (10 runs)
+        run: |
+          if [ "${{ matrix.project-size }}" = "multi" ]; then
+            MAVEN_CMD="mvn -f test/${{ matrix.project-size }}-project/pom.xml install -DskipTests"
+          else
+            MAVEN_CMD="mvn -f test/${{ matrix.project-size }}-project/pom.xml dependency:resolve"
+          fi
+          for _ in $(seq 1 10); do
+            rm -rf ~/.m2/repository/org/springframework ~/.m2/repository/com/fasterxml/jackson
+            $MAVEN_CMD
+          done
+
+      - name: Get EcoCI measurement — extreme mode
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: get-measurement
+          label: 'sustainable-mvn (extreme mode)'
+          send-data: false
+
+      - name: Display EcoCI results
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: display-results
+          send-data: false

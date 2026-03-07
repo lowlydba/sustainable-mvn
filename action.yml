@@ -1,0 +1,96 @@
+name: 'sustainable-mvn'
+description: '🌱 Writes Maven configurations to .mvn/maven.config to optimize speed and reduce CO₂ emissions.'
+author: 'John McCall'
+branding:
+  icon: 'feather'
+  color: 'green'
+
+inputs:
+  batch-mode:
+    description: 'Enable --batch-mode (disables interactive prompts and ANSI color codes).'
+    required: false
+    default: 'true'
+  no-transfer-progress:
+    description: 'Suppress download/upload progress output (--no-transfer-progress).'
+    required: false
+    default: 'true'
+  threads:
+    description: >-
+      Thread count for parallel module builds (--threads).
+      Use 1C for one thread per CPU core, a fixed integer, or empty string to disable.
+    required: false
+    default: '1C'
+  offline:
+    description: 'Run Maven fully offline (--offline). Requires a pre-populated local repo cache.'
+    required: false
+    default: 'false'
+  skip-tests:
+    description: 'Skip test compilation and execution (-DskipTests).'
+    required: false
+    default: 'false'
+  artifact-threads:
+    description: 'Parallel threads for artifact downloads (-Dmaven.artifact.threads).'
+    required: false
+    default: '8'
+  overwrite:
+    description: >-
+      Overwrite an existing .mvn/maven.config.
+      When false, the action skips writing and emits a notice if the file already exists.
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Check for mvn CLI
+      shell: bash
+      run: |
+        # Check for mvn CLI
+        if ! command -v mvn &> /dev/null; then
+          echo "Error: mvn CLI not found. Did you forget to run 'actions/setup-java' first?"
+          exit 1
+        fi
+
+    - name: Write Maven config
+      shell: bash
+      env:
+        BATCH_MODE: ${{ inputs.batch-mode }}
+        NO_TRANSFER_PROGRESS: ${{ inputs.no-transfer-progress }}
+        THREADS: ${{ inputs.threads }}
+        OFFLINE: ${{ inputs.offline }}
+        SKIP_TESTS: ${{ inputs.skip-tests }}
+        ARTIFACT_THREADS: ${{ inputs.artifact-threads }}
+        OVERWRITE: ${{ inputs.overwrite }}
+      run: |
+        # Write Maven config
+        CONFIG_PATH=".mvn/maven.config"
+
+        if [ -f "$CONFIG_PATH" ] && [ "$OVERWRITE" = "false" ]; then
+          echo "::notice::Existing .mvn/maven.config found and overwrite is false. Skipping config generation."
+          exit 0
+        fi
+
+        mkdir -p .mvn
+
+        # Write entries conditionally
+        > "$CONFIG_PATH"
+        [ "$BATCH_MODE" = "true" ]           && echo "--batch-mode"                          >> "$CONFIG_PATH" || true
+        [ "$NO_TRANSFER_PROGRESS" = "true" ] && echo "--no-transfer-progress"                >> "$CONFIG_PATH" || true
+        [ -n "$THREADS" ]                    && echo "--threads $THREADS"                    >> "$CONFIG_PATH" || true
+        [ "$OFFLINE" = "true" ]              && echo "--offline"                             >> "$CONFIG_PATH" || true
+        [ "$SKIP_TESTS" = "true" ]           && echo "-DskipTests"                           >> "$CONFIG_PATH" || true
+        [ -n "$ARTIFACT_THREADS" ]           && echo "-Dmaven.artifact.threads=$ARTIFACT_THREADS" >> "$CONFIG_PATH" || true
+
+    - name: Print Maven config
+      if: runner.debug
+      shell: bash
+      run: |
+        # Print Maven config
+        echo "::group::⚙️ Maven config output"
+        CONFIG_PATH=".mvn/maven.config"
+        if [ -f "$CONFIG_PATH" ]; then
+          cat "$CONFIG_PATH"
+        else
+          echo "No .mvn/maven.config file found."
+        fi
+        echo "::endgroup::"
