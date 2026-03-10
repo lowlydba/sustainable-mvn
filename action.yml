@@ -16,7 +16,7 @@ inputs:
     default: 'true'
   threads:
     description: >-
-      Thread count for parallel module builds (--threads).
+      Thread count for parallel module builds (-T).
       Use 1C for one thread per CPU core, a fixed integer, or empty string to disable.
     required: false
     default: '1C'
@@ -76,7 +76,7 @@ runs:
         > "$CONFIG_PATH"
         [ "$BATCH_MODE" = "true" ]           && echo "--batch-mode"                          >> "$CONFIG_PATH" || true
         [ "$NO_TRANSFER_PROGRESS" = "true" ] && echo "--no-transfer-progress"                >> "$CONFIG_PATH" || true
-        [ -n "$THREADS" ]                    && echo "--threads $THREADS"                    >> "$CONFIG_PATH" || true
+        [ -n "$THREADS" ]                    && echo "-T $THREADS"                          >> "$CONFIG_PATH" || true
         [ "$OFFLINE" = "true" ]              && echo "--offline"                             >> "$CONFIG_PATH" || true
         [ "$SKIP_TESTS" = "true" ]           && echo "-DskipTests"                           >> "$CONFIG_PATH" || true
         [ -n "$ARTIFACT_THREADS" ]           && echo "-Dmaven.artifact.threads=$ARTIFACT_THREADS" >> "$CONFIG_PATH" || true

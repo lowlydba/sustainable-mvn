@@ -50,7 +50,7 @@ jobs:
 
           if ! grep -qxF -- "--batch-mode" "$CONFIG_FILE";                  then echo "Missing: --batch-mode";                  exit 1; fi
           if ! grep -qxF -- "--no-transfer-progress" "$CONFIG_FILE";        then echo "Missing: --no-transfer-progress";        exit 1; fi
-          if ! grep -qxF -- "--threads 1C" "$CONFIG_FILE";                  then echo "Missing: --threads 1C";                  exit 1; fi
+          if ! grep -qxF -- "-T 1C" "$CONFIG_FILE";                         then echo "Missing: -T 1C";                         exit 1; fi
           if ! grep -qxF -- "-Dmaven.artifact.threads=8" "$CONFIG_FILE";    then echo "Missing: -Dmaven.artifact.threads=8";    exit 1; fi
 
           # Verify --offline and -DskipTests are NOT present (both default to false)

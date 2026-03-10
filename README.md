@@ -78,7 +78,7 @@ Example generated config with all defaults:
 ```text
 --batch-mode
 --no-transfer-progress
---threads 1C
+-T 1C
 -Dmaven.artifact.threads=8
 ```
 
@@ -93,7 +93,7 @@ Current CI benchmark fixtures:
 - `test/medium-project`: single-module dependency graph (~40 transitive dependencies, all pre-cached locally)
 - `test/multi-project`: multi-module reactor graph (`parent + 4 modules`) to exercise Maven parallel module scheduling
 
-### Defaults (`--batch-mode --no-transfer-progress --threads 1C -Dmaven.artifact.threads=8`)
+### Defaults (`--batch-mode --no-transfer-progress -T 1C -Dmaven.artifact.threads=8`)
 
 ```text
 Benchmark 1: mvn dependency:resolve (no config)
@@ -126,7 +126,7 @@ Summary: sustainable-mvn ran 1.08 ± 0.30 times faster
 The variance reduction is the headline CI benefit: extreme mode cuts the worst-case outlier from 3.953 s down to 2.319 s, making build times far more predictable.
 
 > [!NOTE]
-> Gains grow with project size and are most visible in multi-module builds where `--threads 1C` engages.
+> Gains grow with project size and are most visible in multi-module builds where `-T 1C` engages.
 > Your actual results will vary based on project structure, network, and hardware.
 
 ## Energy & Carbon Benchmarks
