@@ -17,7 +17,7 @@ jobs:
         java-version: ['11', '17', '21']
         project-size: ['medium', 'multi']
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-java@v5
         with:
@@ -89,7 +89,7 @@ jobs:
         java-version: ['21', '17', '11']
         project-size: ['medium', 'multi']
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-java@v5
         with:
