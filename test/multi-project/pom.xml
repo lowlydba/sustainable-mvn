@@ -20,7 +20,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.release>17</maven.compiler.release>
-    <jackson.version>2.18.6</jackson.version>
+    <jackson.version>2.22.0</jackson.version>
     <spring.version>6.2.11</spring.version>
     <logback.version>1.5.25</logback.version>
     <commons.lang3.version>3.18.0</commons.lang3.version>
